@@ -1,0 +1,49 @@
+name: Audited checks
+
+# tinybot-edged is a docs/licenses-only repo: there is no test suite to run.
+# This workflow keeps CI green and useful: YAML validity of every workflow
+# file, plus the standard committed-secrets scan.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yaml-validity:
+    name: Workflow YAML validity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Parse every workflow file
+        run: |
+          python3 - <<'EOF'
+          import glob
+          import yaml
+          files = sorted(glob.glob(".github/workflows/*.yml"))
+          assert files, "no workflow files found"
+          for f in files:
+              yaml.safe_load(open(f))
+              print(f"ok: {f}")
+          print(f"{len(files)} workflow file(s) parse cleanly")
+          EOF
+
+  secrets-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for committed secrets
+        run: |
+          set -e
+          echo "Scanning for common secret patterns..."
+          ! grep -rnE "AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY|sk_(live|test)_[A-Za-z0-9]+|xox[bap]-[A-Za-z0-9-]+|-----BEGIN" \
+            --include="*.txt" --include="*.md" --include="*.yml" --exclude="audited-checks.yml" .
+          echo "No secrets found."
