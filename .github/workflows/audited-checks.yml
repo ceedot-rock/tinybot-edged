@@ -24,6 +24,7 @@ jobs:
           python-version: "3.12"
       - name: Parse every workflow file
         run: |
+          pip install --quiet pyyaml
           python3 - <<'EOF'
           import glob
           import yaml
